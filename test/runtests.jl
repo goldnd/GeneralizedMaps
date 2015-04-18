@@ -9,11 +9,11 @@ function sew8darts()
     end
     # first sew pairs of darts to each other to form vertices
     for i in range(1, 2, div(length(g.darts), 2))
-        GeneralizedMaps.sew!(g, g.darts[i], g.darts[i+1], 0)
+        GeneralizedMaps.sew!(g.darts[i], g.darts[i+1], 0)
     end
     # now create edges
     for i in range(2, 2, div(length(g.darts), 2))
-        GeneralizedMaps.sew!(g, g.darts[i], g.darts[(i+1)%8], 1)
+        GeneralizedMaps.sew!(g.darts[i], g.darts[(i+1)%8], 1)
     end
     return g
 end
@@ -21,7 +21,7 @@ end
 function countkcells(g, k)
     cells = Set{Set{eltype(g.darts)}}()
     for d in g.darts
-        push!(cells, GeneralizedMaps.collectcelldarts(g, d, k))
+        push!(cells, GeneralizedMaps.collectcelldarts(d, k))
     end
     return length(cells)
 end
