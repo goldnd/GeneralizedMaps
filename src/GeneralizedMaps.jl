@@ -86,14 +86,21 @@ end
 Docile.@doc """
 Set the reference at which the data for dimension i of this dart is stored.
 """ ->
-function setdataloc!{T, S}(d::Dart{T, S}, i, loc::Dart{T,S})
+function setembedloc!{T, S}(d::Dart{T, S}, i, loc::Dart{T,S})
     d.embedloc[i+1] = Nullable(loc)
+end
+
+Docile.@doc """
+Remove the reference at which the data for dimension i of this dart is stored.
+""" ->
+function delembedloc!{T, S}(d::Dart{T, S}, i)
+    d.embedloc[i+1] = Nullable{Dart{T,S}}()
 end
 
 Docile.@doc """
 set the embedded data for dimension i in the dart d to data.
 """ ->
-function setdata!{T, S}(d::Dart{T, S}, i, data::Nullable{S})
+function setembed!{T, S}(d::Dart{T, S}, i, data::Nullable{S})
     d.globalembed[i+1] = data
 end
 
@@ -172,7 +179,7 @@ end
 
 function dispatchembedding{T,S}(start::Dart{T,S}, dim, loc::Dart{T,S})
     for d in collectcelldarts(start, dim)
-        setdataloc!(d, dim, start)
+        setembedloc!(d, dim, loc)
     end
 end
     
@@ -182,10 +189,12 @@ function sharecopyembedding{T,S}(d1::Dart{T,S}, d2::Dart{T,S}, dim)
     if !isequal(k1, k2)
         if isnull(k1)
             new_em = d2.globalembed[dim+1]
-            setdata!(d1, dim, new_em)
+            setembed!(d1, dim, new_em)
             dispatchembedding(d1, dim, d1)
         else
-            dispatchembedding(d1, dim, d1)
+            new_em = d2.globalembed[dim+1]
+            setembed!(d2, dim, new_em)
+            dispatchembedding(d2, dim, d2)
         end
     end
 end
@@ -199,8 +208,13 @@ function sew!{T, S}(d1::Dart{T, S}, d2::Dart{T, S}, dim)
             k1 = findcellkey(dp1, i)
             k2 = findcellkey(dp2, i)
             if !isequal(k1, k2)
-                k2.embedloc[i+1] = k1
-                dispatchembedding(k2, i, k1.globalembed[i+1])
+                if !isnull(k1)
+                    dispatchembedding(dp2, i, get(get(k1).embedloc[i+1]))
+                else
+                    if !isnull(k2)
+                        dispatchembedding(dp1, i, get(get(k2).embedloc[i+1]))
+                    end
+                end
             end
         end
         setalpha!(dp1, dim, dp2)
@@ -209,24 +223,30 @@ function sew!{T, S}(d1::Dart{T, S}, d2::Dart{T, S}, dim)
 end
 
 function polygon!(g, dim, n)
+    T = typeof(g)
+    newdarts = eltype(g.darts)[2][]
     for i in range(1, 2 * n)
-        T = typeof(g)
-        push!(g, Dart(dim, T.parameters[2], T.parameters[3]))
+        push!(newdarts, Dart(dim, T.parameters[2], T.parameters[3]))
+        push!(g, newdarts[end])
     end
     # first sew pairs of darts to each other to form vertices
-    for i in range(1, 2, div(length(g.darts), 2))
-        sew!(g.darts[i], g.darts[i+1], 0)
+    for i in range(1, 2, div(length(newdarts), 2))
+        sew!(newdarts[i], newdarts[i+1], 0)
     end
     # now create edges
-    for i in range(2, 2, div(length(g.darts), 2))
-        sew!(g.darts[i], g.darts[(i+1)%(2*n)], 1)
+    for i in range(2, 2, div(length(newdarts), 2))
+        sew!(newdarts[i], newdarts[(i+1)%(2*n)], 1)
     end
+    return newdarts
 end
 
 function collectkcells(g::GeneralizedMap, k)
     cells = Set{Set{eltype(g.darts)[2]}}()
     for (i, d) in g.darts
-        push!(cells, collectcelldarts(d, k))
+        darts = collectcelldarts(d, k)
+        if length(darts) > k
+            push!(cells, darts)
+        end
     end
     return cells
 end
