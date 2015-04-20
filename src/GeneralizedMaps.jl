@@ -1,6 +1,7 @@
 module GeneralizedMaps
 using Docile
 
+export Dart, id, ids, GeneralizedMap, sew, collectcelldarts, collectkcells, countkcells, Orbit, OrbitBut
 
 type Dart{T, S}
     index::T
@@ -10,8 +11,20 @@ type Dart{T, S}
     globalembed::Vector{Nullable{S}}
     # references to the dart where the data is stored for each dim
     embedloc::Vector{Nullable{Dart{T,S}}}
-    # marker for traversal algorithms
-    ismarked::Bool
+end
+
+typealias Dart2 Dart{ Uint, 3 }
+typealias Dart3 Dart{ Uint, 4 }
+
+Docile.@doc """ Returns a list of dart ids """ ->
+function ids( d )
+    foldl( (a, x) -> push!( a, x.index ) , Set{Int}(),  d )
+	#map( (x) -> x.index, d )
+end
+
+Docile.@doc """ Returns a dart's id """ ->
+function id( d )
+	d.index
 end
 
 function Base.print{T, S}(d::Dart{T,S})
@@ -25,21 +38,14 @@ function Base.print{T, S}(d::Dart{T,S})
 end
 
 function Dart(dim, T, S)
-    d = Dart{T, S}(zero(T), Dart{T,S}[], Nullable{S}[], Nullable{Dart{T,S}}[], false)
+    d = Dart{T, S}(zero(T), Dart{T,S}[], fill(Nullable{S}(), dim + 1), fill(Nullable{Dart{T,S}}(), dim + 1) )
     d.alpha = fill(d, dim + 1)
-    d.globalembed = fill(Nullable{S}(), dim + 1)
-    d.embedloc = fill(Nullable{Dart{T,S}}(), dim + 1)
-    return d
+	return d
 end
 
 function dim{T, S}(d::Dart{T, S})
     return length(d.alpha) - 1
 end
-
-Docile.@doc """
-Initialize an empty dart
-""" ->
-Dart(T, S) = Dart(0, T, S)
 
 Docile.@doc """
 A collection of connected darts.
@@ -60,7 +66,6 @@ function Base.push!{I, T, S}(gmap::GeneralizedMap{I,T,S}, dart::Dart{T,S})
     dart.index = convert(I, length(gmap.darts) + 1)
     gmap.darts[dart.index] = dart
 end
-
 
 Docile.@doc """
 Get the alpha reference for the dart d at dimension i
@@ -117,60 +122,51 @@ Docile.@doc """
 Create an orbit of dimension dim that skips dimensions in exclude.
 """ ->
 function Orbit(dim; exclude=[])
-    orbit = Orbit{typeof(dim)}([])
-    for j in range(0, dim+1)
-        if length(findin(exclude, j)) == 0
-            push!(orbit.index, j)
-        end
-    end
-    return orbit
+    return Orbit{typeof(dim)}( filter( (x) -> ! in( x, exclude ), range( 0, dim + 1 ) ) )
 end
 
 Docile.@doc """
-Mark the Dart d as visited.
+Create an orbit of dimension dim that skips dimensions in exclude.
 """ ->
-function mark!(d::Dart)
-    d.ismarked = true
+function OrbitBut{T,S}( d::Dart{T,S}, k )
+    return Orbit( convert(T, dim(d)), exclude=[ k ] )
 end
 
 Docile.@doc """
-Remove the mark from this dart
+Create an orbit of dimension dim that skips dimensions k.
+Returns all the unique darts seen during traversal
 """ ->
-function unmark!(d::Dart)
-    d.ismarked = false
+function OrbitButForEach{T,S}( d::Dart{T,S}, k, f::Function )
+    return traverse( OrbitBut( d, k ), d, f )
 end
 
 Docile.@doc """
 Traverse the input orbit starting at start and applying the function f.
+Returns all the unique darts seen during traversal
 """ ->
 function traverse{T,S}(orbit::Orbit{T}, start::Dart{T,S}, f::Function)
-    stack=typeof(start)[]
-    mark!(start)
-    push!(stack, start)
-    while !isempty(stack)
-        d = pop!(stack)
-        f(d)
+    seen = Set()
+	#push!( seen, start )
+	#f( start )
+    function traverseWorker( orbit::Orbit, start::Dart, func::Function )
         for j in orbit.index
-            next = alpha(d, j)
-            if !next.ismarked
-                mark!(next)
-                push!(stack, next)
-            end
+			next = start.alpha[j + 1]
+			if ! in( next, seen )
+				func( next )
+				push!( seen, next )
+				traverseWorker( orbit, next, func)
+			end
         end
+		return seen
     end
+    return traverseWorker(orbit, start, f )
 end
 
 Docile.@doc """
 Collect the darts that define the k-cell that contains dart d.
 """ ->
-function collectcelldarts{T,S}(d::Dart{T,S}, k )
-    darts = Set{Dart{T,S}}()
-    orbit = Orbit(convert(T, dim(d)), exclude=[k])
-    traverse(orbit, d, x->push!(darts, x))
-    for dp in darts
-        unmark!(dp)
-    end
-    return darts
+function collectcelldarts{T,S}(d::Dart{T,S}, k)
+    return traverse( OrbitBut( d, k ), d, x -> x  )
 end
 
 function findcellkey{T,S}(start::Dart{T,S}, dim)
@@ -178,16 +174,19 @@ function findcellkey{T,S}(start::Dart{T,S}, dim)
 end
 
 function dispatchembedding{T,S}(start::Dart{T,S}, dim, loc::Dart{T,S})
-    for d in collectcelldarts(start, dim)
-        setembedloc!(d, dim, loc)
-    end
+    OrbitButForEach( start, dim, (d) -> setembedloc!(d, dim, loc) )
 end
     
 function sharecopyembedding{T,S}(d1::Dart{T,S}, d2::Dart{T,S}, dim)
+	function copy_embed( ds, dd )
+            setembed!(dd, dim, ds.globalembed[dim+1])
+            dispatchembedding(dd, dim, dd)
+	end
     k1 = findcellkey(d1, dim)
     k2 = findcellkey(d2, dim)
     if !isequal(k1, k2)
         if isnull(k1)
+		    #FIXME is this a bug?
             new_em = d2.globalembed[dim+1]
             setembed!(d1, dim, new_em)
             dispatchembedding(d1, dim, d1)
@@ -222,11 +221,10 @@ function sew!{T, S}(d1::Dart{T, S}, d2::Dart{T, S}, dim)
     end
 end
 
-function polygon!(g, dim, n)
-    T = typeof(g)
-    newdarts = eltype(g.darts)[2][]
+function polygon!{I, T, S}(g::GeneralizedMap{I, T, S}, dim, n)
+    newdarts = Dart{T, S}[]
     for i in range(1, 2 * n)
-        push!(newdarts, Dart(dim, T.parameters[2], T.parameters[3]))
+        push!(newdarts, Dart(dim, T, S))
         push!(g, newdarts[end])
     end
     # first sew pairs of darts to each other to form vertices
@@ -241,7 +239,7 @@ function polygon!(g, dim, n)
 end
 
 function collectkcells(g::GeneralizedMap, k)
-    cells = Set{Set{eltype(g.darts)[2]}}()
+    cells = Set() #cells = Set{Set{eltype(g.darts)[2]}}()
     for (i, d) in g.darts
         darts = collectcelldarts(d, k)
         if length(darts) > k
@@ -252,7 +250,8 @@ function collectkcells(g::GeneralizedMap, k)
 end
 
 function countkcells(g::GeneralizedMap, k)
-    cells = collectkcells(g, k)
-    return length(cells)
+    return length ( collectkcells(g, k) )
 end
 end # module
+
+# vim: set ts=4 sw=4:
