@@ -112,24 +112,50 @@ end
 Docile.@doc """
 An Orbit stores a set of involution or pointer indices to define a path through the map
 """ ->
-type Orbit{T}
-    index::Vector{T}
+type Orbit
+    index::Function
 end
-
-Orbit() = Orbit(Int32[])
 
 Docile.@doc """
 Create an orbit of dimension dim that skips dimensions in exclude.
 """ ->
 function Orbit(dim; exclude=[])
-    return Orbit{typeof(dim)}( filter( (x) -> ! in( x, exclude ), range( 0, dim + 1 ) ) )
+    t = () ->
+    for x in range(0, dim + 1)
+        if !in(x, exclude)
+            produce(x)
+        end
+    end
+    return Orbit( t )
+end
+
+Docile.@doc """
+Create an oriented orbit of dimension dim that skips dimensions in exclude.
+""" ->
+function OrientedOrbit(dim; exclude=[])
+    if dim > 0
+        t = () ->
+        for x in range(1, dim + 1)
+            if !in(x, exclude)
+                produce(0)
+                produce(x)
+            end
+        end
+    else
+        t = () ->
+        for x in range(2, dim + 1)
+            produce(2)
+            produce(x)
+        end
+    end
+    return Orbit( t )
 end
 
 Docile.@doc """
 Create an orbit of dimension dim that skips dimensions in exclude.
 """ ->
 function OrbitBut{T,S}( d::Dart{T,S}, k )
-    return Orbit( convert(T, dim(d)), exclude=[ k ] )
+    return Orbit(dim(d), exclude=[ k ] )
 end
 
 Docile.@doc """
@@ -141,15 +167,30 @@ function OrbitButForEach{T,S}( d::Dart{T,S}, k, f::Function )
 end
 
 Docile.@doc """
+Create an orbit of dimension dim that skips dimensions in exclude.
+""" ->
+function OrientedOrbitBut{T,S}( d::Dart{T,S}, k )
+    return OrientedOrbit( dim(d), exclude=[ k ] )
+end
+
+Docile.@doc """
+Create an orbit of dimension dim that skips dimensions k.
+Returns all the unique darts seen during traversal
+""" ->
+function OrientedOrbitButForEach{T,S}( d::Dart{T,S}, k, f::Function )
+    return traverse( OrbitBut( d, k ), d, f )
+end
+
+Docile.@doc """
 Traverse the input orbit starting at start and applying the function f.
 Returns all the unique darts seen during traversal
 """ ->
-function traverse{T,S}(orbit::Orbit{T}, start::Dart{T,S}, f::Function)
+function traverse{T,S}(orbit::Orbit, start::Dart{T,S}, f::Function)
     seen = Set()
 	#push!( seen, start )
 	#f( start )
     function traverseWorker( orbit::Orbit, start::Dart, func::Function )
-        for j in orbit.index
+        for j in Task(orbit.index)
 			next = start.alpha[j + 1]
 			if ! in( next, seen )
 				func( next )
