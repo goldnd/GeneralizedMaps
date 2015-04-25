@@ -3,14 +3,27 @@ using Docile
 
 export Dart, id, ids, GeneralizedMap, sew, collectcelldarts, collectkcells, countkcells, Orbit, OrbitBut
 
+type OrientedDart{T, S}
+    index::T
+    # involutions or references to other darts in the GeneralizedMap
+    phi::Vector{Nullable{OrientedDart{T,S}}}
+    # data associated with a global set of darts (an orbit or k-cell)
+    globalembed::Vector{Nullable{S}}
+    # references to the dart where the data is stored for each dim
+    embedloc::Vector{Nullable{OrientedDart{T,S}}}
+    isboundary::Bool
+end
+
+
 type Dart{T, S}
     index::T
     # involutions or references to other darts in the GeneralizedMap
-    alpha::Vector{Dart{T,S}}
+    alpha::Vector{Nullable{Dart{T,S}}}
     # data associated with a global set of darts (an orbit or k-cell)
     globalembed::Vector{Nullable{S}}
     # references to the dart where the data is stored for each dim
     embedloc::Vector{Nullable{Dart{T,S}}}
+    isboundary::Bool
 end
 
 typealias Dart2 Dart{ Uint, 3 }
@@ -32,14 +45,28 @@ function Base.print{T, S}(d::Dart{T,S})
     println("Index: ", d.index)
     print("alphas: ")
     for a in d.alpha
-        print(a.index, " ")
+        if !isnull(a)
+            print(get(a).index, " ")
+        end
+    end
+    println()
+end
+
+function Base.print{T, S}(d::OrientedDart{T,S})
+    println("Dart:")
+    println("Index: ", d.index)
+    print("phis: ")
+    for phi in d.phi
+        if !isnull(phi)
+            print(get(phi).index, " ")
+        end
     end
     println()
 end
 
 function Dart(dim, T, S)
-    d = Dart{T, S}(zero(T), Dart{T,S}[], fill(Nullable{S}(), dim + 1), fill(Nullable{Dart{T,S}}(), dim + 1) )
-    d.alpha = fill(d, dim + 1)
+    d = Dart{T, S}(zero(T), Dart{T,S}[], fill(Nullable{S}(), dim + 1), fill(Nullable{Dart{T,S}}(), dim + 1), false )
+    d.alpha = fill(Nullable{Dart{T, S}}(), dim + 1)
 	return d
 end
 
@@ -47,11 +74,15 @@ function dim{T, S}(d::Dart{T, S})
     return length(d.alpha) - 1
 end
 
+function dim{T, S}(d::OrientedDart{T, S})
+    return length(d.phi)
+end
+
 Docile.@doc """
-A collection of connected darts.
+A collection of connected darts.  Should consist of Darts /or/ OrientedDarts, not both.
 """ ->
 type GeneralizedMap{I,T,S}
-    darts::Dict{I, Dart{T,S}}
+    darts::Dict{I, Union(Dart{T,S}, OrientedDart{T,S})}
 end
 
 Docile.@doc """
@@ -68,6 +99,13 @@ function Base.push!{I, T, S}(gmap::GeneralizedMap{I,T,S}, dart::Dart{T,S})
 end
 
 Docile.@doc """
+Return true if this dart is part of the boundary
+""" ->
+function isboundary{T,S}(d::Union(Dart{T,S}, OrientedDart{T,S}))
+    return d.isboundary
+end
+    
+Docile.@doc """
 Get the alpha reference for the dart d at dimension i
 """ ->
 function alpha{T,S}(d::Dart{T, S}, i::T)
@@ -78,13 +116,20 @@ Docile.@doc """
 Set the alpha reference for the dart d at dimension i to the dart other
 """ ->
 function setalpha!{T,S}(d::Dart{T, S}, i, other::Dart{T,S})
-    d.alpha[i+1] = other
+    d.alpha[i+1] = Nullable(other)
+end
+
+Docile.@doc """
+Set the phi reference for the oriented dart d at dimension i to the dart other
+""" ->
+function setphi!{T,S}(d::OrientedDart{T, S}, i, other::OrientedDart{T,S})
+    d.alpha[i+1] = Nullable(other)
 end
 
 Docile.@doc """
 Get the embedded data for dimension i of this dart.
 """ ->
-function data{T, S}(d::Dart{T, S}, i)
+function data{T, S}(d::Union(Dart{T, S}, OrientedDart{T,S}), i)
     return get(d.globalembed[i+1])
 end
 
@@ -105,12 +150,12 @@ end
 Docile.@doc """
 set the embedded data for dimension i in the dart d to data.
 """ ->
-function setembed!{T, S}(d::Dart{T, S}, i, data::Nullable{S})
+function setembed!{T, S}(d::Union(Dart{T, S}, OrientedDart{T,S}), i, data::Nullable{S})
     d.globalembed[i+1] = data
 end
 
 Docile.@doc """
-An Orbit stores a set of involution or pointer indices to define a path through the map
+An Orbit stores a function that produces pointer indices to define a path through the map.  This is used as input to the traverse functions.
 """ ->
 type Orbit
     index::Function
@@ -130,25 +175,54 @@ function Orbit(dim; exclude=[])
 end
 
 Docile.@doc """
-Create an oriented orbit of dimension dim that skips dimensions in exclude.
+Create an orbit of dimension dim that interposes pre and skips dimensions in exclude.
 """ ->
-function OrientedOrbit(dim; exclude=[])
-    if dim > 0
-        t = () ->
-        for x in range(1, dim + 1)
-            if !in(x, exclude)
-                produce(0)
-                produce(x)
-            end
-        end
-    else
-        t = () ->
-        for x in range(2, dim + 1)
-            produce(2)
+function InterposeOrbit(dim; pre = 0, exclude=[])
+    t = () ->
+    for x in range(1, dim + 1)
+        if !in(x, exclude)
+            produce(pre)
             produce(x)
         end
     end
     return Orbit( t )
+end
+
+Docile.@doc """
+Create an orbit of dimension dim that interposes post and skips dimensions in exclude.
+""" ->
+function InterposeOrbit(dim; post = 0, exclude=[])
+    t = () ->
+    for x in range(1, dim + 1)
+        if !in(x, exclude)
+            produce(x)
+            produce(post)
+        end
+    end
+    return Orbit( t )
+end
+
+Docile.@doc """
+Create an orbit of dimension dim that interposes pre and skips dimensions in exclude.
+""" ->
+function InterposeOrbit(dim; pre = 0, post = 0, exclude=[])
+    t = () ->
+    for x in range(1, dim + 1)
+        if !in(x, exclude)
+            produce(pre)
+            produce(x)
+            produce(post)
+        end
+    end
+    return Orbit( t )
+end
+
+function kcellorbit(d::Dart, k)
+    return OrientedOrbit(dim(d), exclude = [k])
+end
+
+function kcellorbit(d::OrientedDart, k)
+    return Orbit(dim(d), exclude = [k])
 end
 
 Docile.@doc """
@@ -192,11 +266,51 @@ function traverse{T,S}(orbit::Orbit, start::Dart{T,S}, f::Function)
     function traverseWorker( orbit::Orbit, start::Dart, func::Function )
         for j in Task(orbit.index)
 			next = start.alpha[j + 1]
-			if ! in( next, seen )
-				func( next )
-				push!( seen, next )
-				traverseWorker( orbit, next, func)
-			end
+            if isnull(next)
+                next = Nullable(start)
+			    if ! in( get(next), seen )
+				    func( get(next) )
+				    push!( seen, get(next) )
+                end
+                continue
+            else
+			    if ! in( get(next), seen )
+				    func( get(next) )
+				    push!( seen, get(next) )
+				    traverseWorker( orbit, get(next), func)
+			    end
+            end
+        end
+		return seen
+    end
+    return traverseWorker(orbit, start, f )
+end
+
+Docile.@doc """
+Traverse the input orbit starting at the oriented dart start and applying the function f.
+Returns all the unique darts seen during traversal
+""" ->
+function traverse{T,S}(orbit::Orbit, start::OrientedDart{T,S}, f::Function)
+    seen = Set()
+	#push!( seen, start )
+	#f( start )
+    function traverseWorker( orbit::Orbit, start::OrientedDart, func::Function )
+        for j in Task(orbit.index)
+			next = start.phi[j]
+            if isnull(next)
+                next = Nullable(start)
+			    if ! in( get(next), seen )
+				    func( get(next) )
+				    push!( seen, get(next) )
+                end
+                continue
+            else
+			    if ! in( get(next), seen )
+				    func( get(next) )
+				    push!( seen, get(next) )
+				    traverseWorker( orbit, get(next), func)
+			    end
+            end
         end
 		return seen
     end
@@ -262,6 +376,29 @@ function sew!{T, S}(d1::Dart{T, S}, d2::Dart{T, S}, dim)
     end
 end
 
+Docile.@doc """
+Connect or sew two cells of dimension dim  together.
+""" ->
+function orientedsew!{T, S}(d1::OrientedDart{T, S}, d2::OrientedDart{T, S}, dim)
+    # TODO add check for validity of orientation involution
+    for (dp1, dp2) in zip(collectcelldarts(d1, dim - 1), collectcelldarts(d2, dim - 1))
+        for i in range(0, dim)
+            k1 = findcellkey(dp1, i)
+            k2 = findcellkey(dp2, i)
+            if !isequal(k1, k2)
+                if !isnull(k1)
+                    dispatchembedding(dp2, i, get(get(k1).embedloc[i+1]))
+                else
+                    if !isnull(k2)
+                        dispatchembedding(dp1, i, get(get(k2).embedloc[i+1]))
+                    end
+                end
+            end
+        end
+        setphi!(dp1, dim, dp2)
+    end
+end
+
 function polygon!{I, T, S}(g::GeneralizedMap{I, T, S}, dim, n)
     newdarts = Dart{T, S}[]
     for i in range(1, 2 * n)
@@ -274,7 +411,7 @@ function polygon!{I, T, S}(g::GeneralizedMap{I, T, S}, dim, n)
     end
     # now create edges
     for i in range(2, 2, div(length(newdarts), 2))
-        sew!(newdarts[i], newdarts[(i+1)%(2*n)], 1)
+        sew!(newdarts[i], newdarts[(i+1) % (2*n)], 1)
     end
     return newdarts
 end
