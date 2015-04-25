@@ -29,6 +29,14 @@ end
 typealias Dart2 Dart{ Uint, 3 }
 typealias Dart3 Dart{ Uint, 4 }
 
+Docile.@doc """ Returns new list with a zero before every entry """ ->
+function intersperseLeadingZeros ( lst )
+    foldl( (a, x) -> begin
+				  push!( a, 0 )
+				  push!( a, x )
+				  end, [],  lst )
+end
+
 Docile.@doc """ Returns a list of dart ids """ ->
 function ids( d )
     foldl( (a, x) -> push!( a, x.index ) , Set{Int}(),  d )
