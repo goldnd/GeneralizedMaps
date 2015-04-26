@@ -90,7 +90,7 @@ Docile.@doc """
 A collection of connected darts.  Should consist of Darts /or/ OrientedDarts, not both.
 """ ->
 type GeneralizedMap{I,T,S}
-    darts::Dict{I, Union(Dart{T,S}, OrientedDart{T,S})}
+    darts::Dict{I, Dart{T,S}}
 end
 
 Docile.@doc """
