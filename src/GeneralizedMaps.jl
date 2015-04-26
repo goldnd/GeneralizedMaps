@@ -34,6 +34,7 @@ function intersperseLeadingZeros ( lst )
     foldl( (a, x) -> begin
 				  push!( a, 0 )
 				  push!( a, x )
+				  a
 				  end, [],  lst )
 end
 

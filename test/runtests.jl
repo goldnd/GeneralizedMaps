@@ -1,4 +1,4 @@
-using GeneralizedMaps: GeneralizedMap, polygon!, countkcells, ids, collectcelldarts, id
+using GeneralizedMaps: GeneralizedMap, polygon!, countkcells, ids, collectcelldarts, id, intersperseLeadingZeros
 using Base.Test
 using FactCheck
 
@@ -43,6 +43,7 @@ facts() do
 	       7 => Set( [ 1, 2, 3, 4, 5, 6, 7, 8 ] ),
 	       8 => Set( [ 1, 2, 3, 4, 5, 6, 7, 8 ] ) ),
 ]
+    @fact intersperseLeadingZeros( [ 1, 2, 3, 4, 6 ] ) => [ 0, 1, 0, 2, 0, 3, 0, 4, 0, 6 ] 
 end
 
 
@@ -56,3 +57,5 @@ GeneralizedMaps.sew!(g.darts[1], g.darts[2],1)
 facts() do
     @fact get(g.darts[2].embedloc[1]) => g.darts[1]
 end
+
+# vim: set ts=4 sw=4:
