@@ -3,8 +3,8 @@ using Base.Test
 using FactCheck
 
 # write your own tests here
-g = GeneralizedMaps.GeneralizedMap(Int32, Int32)
-GeneralizedMaps.polygon!(g, convert(Int32, 2), 4)
+g = GeneralizedMaps.GeneralizedMap(Int64, Int64)
+GeneralizedMaps.polygon!(g, convert(Int64, 2), 4)
 # count verts
 facts() do
     @fact countkcells(g, 0) => 4

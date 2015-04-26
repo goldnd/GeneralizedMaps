@@ -1,7 +1,7 @@
 module GeneralizedMaps
 using Docile
 
-export Dart, id, ids, GeneralizedMap, sew, collectcelldarts, collectkcells, countkcells, Orbit, OrbitBut
+export OrientedDart, Dart, id, ids, GeneralizedMap, sew, collectcelldarts, collectkcells, countkcells, Orbit, OrbitBut
 
 type OrientedDart{T, S}
     index::T
@@ -104,7 +104,7 @@ Push dart onto the GeneralizedMap gmap.  The index is updated and the result is 
 """ ->
 function Base.push!{I, T, S}(gmap::GeneralizedMap{I,T,S}, dart::Dart{T,S})
     dart.index = convert(I, length(gmap.darts) + 1)
-    gmap.darts[dart.index] = dart
+    gmap.darts[dart.index] = Dart{T,S}(dart)
 end
 
 Docile.@doc """
@@ -412,7 +412,7 @@ function polygon!{I, T, S}(g::GeneralizedMap{I, T, S}, dim, n)
     newdarts = Dart{T, S}[]
     for i in range(1, 2 * n)
         push!(newdarts, Dart(dim, T, S))
-        push!(g, newdarts[end])
+        push!(g, Dart{T,S}(newdarts[end]))
     end
     # first sew pairs of darts to each other to form vertices
     for i in range(1, 2, div(length(newdarts), 2))
