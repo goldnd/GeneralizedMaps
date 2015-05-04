@@ -231,7 +231,7 @@ function kcellorbit(d::Dart, k)
 end
 
 function kcellorbit(d::OrientedDart, k)
-    return Orbit(dim(d), exclude = [k])
+    return Orbit(dim(d), exclude = [0, k])
 end
 
 Docile.@doc """
