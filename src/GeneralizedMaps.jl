@@ -228,11 +228,11 @@ function InterposeOrbit(dim; pre = 0, post = 0, exclude=[])
 end
 
 function kcellorbit(d::Dart, k)
-    return Orbit(dim(d), exclude = [k])
+    return InterposeOrbit(dim(d); pre = 0, exclude = [k])
 end
 
 function kcellorbit(d::OrientedDart, k)
-    return OrientedOrbit(dim(d), exclude = [k])
+    return Orbit(dim(d), exclude = [0, k])
 end
 
 Docile.@doc """
@@ -253,16 +253,16 @@ end
 Docile.@doc """
 Create an orbit of dimension dim that skips dimensions in exclude.
 """ ->
-function OrientedOrbitBut{T,S}( d::OrientedDart{T,S}, k )
-    return OrientedOrbit( dim(d), exclude=[ k ] )
+function OrientedOrbitBut{T,S}( d::Dart{T,S}, k )
+    return InterposeOrbit(dim(d); pre = 0, exclude = [k])
 end
 
 Docile.@doc """
 Create an orbit of dimension dim that skips dimensions k.
 Returns all the unique darts seen during traversal
 """ ->
-function OrientedOrbitButForEach{T,S}( d::OrientedDart{T,S}, k, f::Function )
-    return traverse( OrientedOrbitBut( d, k ), d, f )
+function OrientedOrbitButForEach{T,S}( d::Dart{T,S}, k, f::Function )
+    return traverse( OrbitBut( d, k ), d, f )
 end
 
 Docile.@doc """
