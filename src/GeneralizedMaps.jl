@@ -1,7 +1,7 @@
 module GeneralizedMaps
 using Docile
 
-export OrientedDart, Dart, id, ids, GeneralizedMap, sew, collectcelldarts, collectkcells, countkcells, Orbit, OrbitBut, polygon!, data, setcellembed!
+export OrientedDart, Dart, id, ids, GeneralizedMap, sew, collectcelldarts, collectkcells, countkcells, Orbit, OrbitBut
 
 type OrientedDart{T, S}
     index::T
