@@ -1,7 +1,7 @@
 module GeneralizedMaps
 using Docile
 
-export OrientedDart, Dart, id, ids, GeneralizedMap, sew, collectcelldarts, collectkcells, countkcells, Orbit, OrbitBut
+export OrientedDart, Dart, id, ids, GeneralizedMap, sew, collectcelldarts, collectkcells, countkcells, Orbit, OrbitBut, polygon!, data, setcellembed!
 
 type OrientedDart{T, S}
     index::T
@@ -76,7 +76,7 @@ end
 function Dart(dim, T, S)
     d = Dart{T, S}(zero(T), Dart{T,S}[], fill(Nullable{S}(), dim + 1), fill(Nullable{Dart{T,S}}(), dim + 1), false )
     d.alpha = fill(Nullable{Dart{T, S}}(), dim + 1)
-	return d
+    return d
 end
 
 function dim{T, S}(d::Dart{T, S})
@@ -139,7 +139,8 @@ Docile.@doc """
 Get the embedded data for dimension i of this dart.
 """ ->
 function data{T, S}(d::Union(Dart{T, S}, OrientedDart{T,S}), i)
-    return get(d.globalembed[i+1])
+    key = get(d.embedloc[i+1])
+    return(get(key.globalembed[i+1]))
 end
 
 Docile.@doc """
@@ -227,11 +228,11 @@ function InterposeOrbit(dim; pre = 0, post = 0, exclude=[])
 end
 
 function kcellorbit(d::Dart, k)
-    return OrientedOrbit(dim(d), exclude = [k])
+    return Orbit(dim(d), exclude = [k])
 end
 
 function kcellorbit(d::OrientedDart, k)
-    return Orbit(dim(d), exclude = [k])
+    return OrientedOrbit(dim(d), exclude = [k])
 end
 
 Docile.@doc """
@@ -252,7 +253,7 @@ end
 Docile.@doc """
 Create an orbit of dimension dim that skips dimensions in exclude.
 """ ->
-function OrientedOrbitBut{T,S}( d::Dart{T,S}, k )
+function OrientedOrbitBut{T,S}( d::OrientedDart{T,S}, k )
     return OrientedOrbit( dim(d), exclude=[ k ] )
 end
 
@@ -260,8 +261,8 @@ Docile.@doc """
 Create an orbit of dimension dim that skips dimensions k.
 Returns all the unique darts seen during traversal
 """ ->
-function OrientedOrbitButForEach{T,S}( d::Dart{T,S}, k, f::Function )
-    return traverse( OrbitBut( d, k ), d, f )
+function OrientedOrbitButForEach{T,S}( d::OrientedDart{T,S}, k, f::Function )
+    return traverse( OrientedOrbitBut( d, k ), d, f )
 end
 
 Docile.@doc """
@@ -337,15 +338,20 @@ function findcellkey{T,S}(start::Dart{T,S}, dim)
     return start.embedloc[dim+1]
 end
 
-function dispatchembedding{T,S}(start::Dart{T,S}, dim, loc::Dart{T,S})
+function dispatchembedding!{T,S}(start::Dart{T,S}, dim, loc::Dart{T,S})
     OrbitButForEach( start, dim, (d) -> setembedloc!(d, dim, loc) )
+end
+
+function setcellembed!{T,S}(keydart::Dart{T,S}, i, data)
+    setembed!(keydart, i, Nullable{S}(data))
+    dispatchembedding!(keydart, i, keydart)
 end
     
 function sharecopyembedding{T,S}(d1::Dart{T,S}, d2::Dart{T,S}, dim)
-	function copy_embed( ds, dd )
-            setembed!(dd, dim, ds.globalembed[dim+1])
-            dispatchembedding(dd, dim, dd)
-	end
+    function copy_embed( ds, dd )
+        setembed!(dd, dim, ds.globalembed[dim+1])
+        dispatchembedding(dd, dim, dd)
+    end
     k1 = findcellkey(d1, dim)
     k2 = findcellkey(d2, dim)
     if !isequal(k1, k2)
