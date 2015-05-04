@@ -139,6 +139,13 @@ Docile.@doc """
 Get the embedded data for dimension i of this dart.
 """ ->
 function data{T, S}(d::Union(Dart{T, S}, OrientedDart{T,S}), i)
+    return get(d.globalembed[i+1])
+end
+
+Docile.@doc """
+Get the embedded data for i-cell containing this dart.
+""" ->
+function celldata{T, S}(d::Union(Dart{T, S}, OrientedDart{T,S}), i)
     key = get(d.embedloc[i+1])
     return(get(key.globalembed[i+1]))
 end
@@ -338,7 +345,7 @@ function findcellkey{T,S}(start::Dart{T,S}, dim)
     return start.embedloc[dim+1]
 end
 
-function dispatchembedding!{T,S}(start::Dart{T,S}, dim, loc::Dart{T,S})
+function dispatchembedding{T,S}(start::Dart{T,S}, dim, loc::Dart{T,S})
     OrbitButForEach( start, dim, (d) -> setembedloc!(d, dim, loc) )
 end
 
@@ -347,13 +354,13 @@ Embeds data into specified key dart for the i-cell and sets the key dart as embe
 """ -> 
 function setcellembed!{T,S}(keydart::Dart{T,S}, i, data)
     setembed!(keydart, i, Nullable{S}(data))
-    dispatchembedding!(keydart, i, keydart)
+    dispatchembedding(keydart, i, keydart)
 end
     
 function sharecopyembedding{T,S}(d1::Dart{T,S}, d2::Dart{T,S}, dim)
     function copy_embed( ds, dd )
         setembed!(dd, dim, ds.globalembed[dim+1])
-        dispatchembedding!(dd, dim, dd)
+        dispatchembedding(dd, dim, dd)
     end
     k1 = findcellkey(d1, dim)
     k2 = findcellkey(d2, dim)
@@ -362,11 +369,11 @@ function sharecopyembedding{T,S}(d1::Dart{T,S}, d2::Dart{T,S}, dim)
 		    #FIXME is this a bug?
             new_em = d2.globalembed[dim+1]
             setembed!(d1, dim, new_em)
-            dispatchembedding!(d1, dim, d1)
+            dispatchembedding(d1, dim, d1)
         else
             new_em = d2.globalembed[dim+1]
             setembed!(d2, dim, new_em)
-            dispatchembedding!(d2, dim, d2)
+            dispatchembedding(d2, dim, d2)
         end
     end
 end
@@ -381,10 +388,10 @@ function sew!{T, S}(d1::Dart{T, S}, d2::Dart{T, S}, dim)
             k2 = findcellkey(dp2, i)
             if !isequal(k1, k2)
                 if !isnull(k1)
-                    dispatchembedding!(dp2, i, get(get(k1).embedloc[i+1]))
+                    dispatchembedding(dp2, i, get(get(k1).embedloc[i+1]))
                 else
                     if !isnull(k2)
-                        dispatchembedding!(dp1, i, get(get(k2).embedloc[i+1]))
+                        dispatchembedding(dp1, i, get(get(k2).embedloc[i+1]))
                     end
                 end
             end
@@ -405,10 +412,10 @@ function orientedsew!{T, S}(d1::OrientedDart{T, S}, d2::OrientedDart{T, S}, dim)
             k2 = findcellkey(dp2, i)
             if !isequal(k1, k2)
                 if !isnull(k1)
-                    dispatchembedding!(dp2, i, get(get(k1).embedloc[i+1]))
+                    dispatchembedding(dp2, i, get(get(k1).embedloc[i+1]))
                 else
                     if !isnull(k2)
-                        dispatchembedding!(dp1, i, get(get(k2).embedloc[i+1]))
+                        dispatchembedding(dp1, i, get(get(k2).embedloc[i+1]))
                     end
                 end
             end
