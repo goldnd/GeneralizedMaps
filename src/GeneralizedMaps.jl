@@ -278,8 +278,8 @@ Returns all the unique darts seen during traversal
 """ ->
 function traverse{T,S}(orbit::Orbit, start::Dart{T,S}, f::Function)
     seen = Set()
-	#push!( seen, start )
-	#f( start )
+    push!( seen, start )
+    f( start )
     function traverseWorker( orbit::Orbit, start::Dart, func::Function )
         for j in Task(orbit.index)
 			next = start.alpha[j + 1]
@@ -298,7 +298,7 @@ function traverse{T,S}(orbit::Orbit, start::Dart{T,S}, f::Function)
 			    end
             end
         end
-		return seen
+	return seen
     end
     return traverseWorker(orbit, start, f )
 end
@@ -439,6 +439,24 @@ function polygon!{I, T, S}(g::GeneralizedMap{I, T, S}, dim, n)
         sew!(newdarts[i], newdarts[(i+1) % (2*n)], 1)
     end
     return newdarts
+end
+
+
+function parallelepiped!{I, T, S}(g::GeneralizedMap{I, T, S}, dim)
+    for i in 1:6
+        polygon!(g, dim, 4)
+    end
+    # for i in 0:3
+    #     println(2i+1, " ", 8i+17)
+    #     println(2i+9, " ", 8i+22)
+    #     println(8i+19, " ", mod1(8(i+2), 32)+16)
+    # end
+    # sew!(g.darts[1], g.darts[17], 2)
+    for i in 0:3
+        sew!(g.darts[2i+1], g.darts[8i+17], 2)
+        sew!(g.darts[2i+9], g.darts[8i+22], 2)
+        sew!(g.darts[8i+19], g.darts[mod1(8(i+2), 32)+16], 2)
+    end
 end
 
 function collectkcells(g::GeneralizedMap, k)
