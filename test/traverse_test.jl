@@ -9,6 +9,9 @@ for i in 1:n
     polygon!(g, 1, 4);
 end
 
+# Show the return of collect cell darts using both darts in the
+# 0-cell as the start dart. Repeat for one 0-cell on each of the
+# four polygons to see patterns (or the lack thereof).
 for i in 1:n
     println("Ploygon: ", i)
     print("Dart ", i*8-7, " traversal:\n")
