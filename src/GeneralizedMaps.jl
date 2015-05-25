@@ -278,29 +278,34 @@ Returns all the unique darts seen during traversal
 """ ->
 function traverse{T,S}(orbit::Orbit, start::Dart{T,S}, f::Function)
     seen = Set()
-    push!( seen, start )
-    f( start )
+    seenlist = []
+    push!(seen, start)
+    push!(seenlist, start)
+    f(start)
     function traverseWorker( orbit::Orbit, start::Dart, func::Function )
         for j in Task(orbit.index)
-			next = start.alpha[j + 1]
+	    next = start.alpha[j + 1]
             if isnull(next)
                 next = Nullable(start)
-			    if ! in( get(next), seen )
-				    func( get(next) )
-				    push!( seen, get(next) )
+		if ! in(get(next), seen)
+		    func(get(next))
+		    push!(seen, get(next))
+                    push!(seenlist, get(next))
                 end
                 continue
             else
-			    if ! in( get(next), seen )
-				    func( get(next) )
-				    push!( seen, get(next) )
-				    traverseWorker( orbit, get(next), func)
-			    end
+		if ! in(get(next), seen)
+		    func(get(next))
+		    push!(seen, get(next))
+                    push!(seenlist, get(next))
+		    traverseWorker(orbit, get(next), func)
+		end
             end
         end
-	return seen
+        # return seen
+	return seenlist
     end
-    return traverseWorker(orbit, start, f )
+    return traverseWorker(orbit, start, f)
 end
 
 Docile.@doc """
