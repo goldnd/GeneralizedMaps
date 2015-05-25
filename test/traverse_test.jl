@@ -12,7 +12,7 @@ for i in 1:n
     polygon!(g, 1, dim_max);
 end
 
-facts("Check that traverse always returns the start dart first. (Uses collectcelldarts to call traverse.)") do
+facts("Check that traverse always returns the start dart first. Uses collectcelldarts to call traverse.") do
     for (i, dart) in g.darts
         for dim in 0:dim_max
             t = collectcelldarts(dart, dim)

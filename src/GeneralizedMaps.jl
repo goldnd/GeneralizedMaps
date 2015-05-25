@@ -277,10 +277,8 @@ Traverse the input orbit starting at start and applying the function f.
 Returns all the unique darts seen during traversal
 """ ->
 function traverse{T,S}(orbit::Orbit, start::Dart{T,S}, f::Function)
-    seen = Set()
-    seenlist = []
+    seen = []
     push!(seen, start)
-    push!(seenlist, start)
     f(start)
     function traverseWorker( orbit::Orbit, start::Dart, func::Function )
         for j in Task(orbit.index)
@@ -290,20 +288,17 @@ function traverse{T,S}(orbit::Orbit, start::Dart{T,S}, f::Function)
 		if ! in(get(next), seen)
 		    func(get(next))
 		    push!(seen, get(next))
-                    push!(seenlist, get(next))
                 end
                 continue
             else
 		if ! in(get(next), seen)
 		    func(get(next))
 		    push!(seen, get(next))
-                    push!(seenlist, get(next))
 		    traverseWorker(orbit, get(next), func)
 		end
             end
         end
-        # return seen
-	return seenlist
+        return seen
     end
     return traverseWorker(orbit, start, f)
 end
@@ -467,7 +462,7 @@ end
 function collectkcells(g::GeneralizedMap, k)
     cells = Set() #cells = Set{Set{eltype(g.darts)[2]}}()
     for (i, d) in g.darts
-        darts = collectcelldarts(d, k)
+        darts = Set(collectcelldarts(d, k))
         if length(darts) > k
             push!(cells, darts)
         end
