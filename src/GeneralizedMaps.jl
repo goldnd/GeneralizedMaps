@@ -308,28 +308,28 @@ Traverse the input orbit starting at the oriented dart start and applying the fu
 Returns all the unique darts seen during traversal
 """ ->
 function traverse{T,S}(orbit::Orbit, start::OrientedDart{T,S}, f::Function)
-    seen = Set()
-	#push!( seen, start )
-	#f( start )
+    seen = []
+    push!(seen, start)
+    f(start)
     function traverseWorker( orbit::Orbit, start::OrientedDart, func::Function )
         for j in Task(orbit.index)
-			next = start.phi[j]
+	    next = start.phi[j]
             if isnull(next)
                 next = Nullable(start)
-			    if ! in( get(next), seen )
-				    func( get(next) )
-				    push!( seen, get(next) )
+		if ! in(get(next), seen)
+		    func(get(next))
+		    push!(seen, get(next))
                 end
                 continue
             else
-			    if ! in( get(next), seen )
-				    func( get(next) )
-				    push!( seen, get(next) )
-				    traverseWorker( orbit, get(next), func)
-			    end
+		if ! in(get(next), seen)
+		    func(get(next))
+		    push!(seen, get(next))
+		    traverseWorker(orbit, get(next), func)
+		end
             end
         end
-		return seen
+	return seen
     end
     return traverseWorker(orbit, start, f )
 end
@@ -443,19 +443,13 @@ end
 
 
 function parallelepiped!{I, T, S}(g::GeneralizedMap{I, T, S}, dim)
-    for i in 1:6
+    for i in 1:6                # Create six squares to be sewn together.
         polygon!(g, dim, 4)
     end
-    # for i in 0:3
-    #     println(2i+1, " ", 8i+17)
-    #     println(2i+9, " ", 8i+22)
-    #     println(8i+19, " ", mod1(8(i+2), 32)+16)
-    # end
-    # sew!(g.darts[1], g.darts[17], 2)
     for i in 0:3
-        sew!(g.darts[2i+1], g.darts[8i+17], 2)
-        sew!(g.darts[2i+9], g.darts[8i+22], 2)
-        sew!(g.darts[8i+19], g.darts[mod1(8(i+2), 32)+16], 2)
+        sew!(g.darts[2i+1], g.darts[8i+17], 2) # Sew "bottom" square to sides.
+        sew!(g.darts[2i+9], g.darts[8i+22], 2) # Sew "top" square to sides.
+        sew!(g.darts[8i+19], g.darts[mod1(8(i+2), 32)+16], 2) # Sew side edges together.
     end
 end
 
