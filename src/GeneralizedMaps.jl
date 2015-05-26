@@ -76,7 +76,7 @@ end
 function Dart(dim, T, S)
     d = Dart{T, S}(zero(T), Dart{T,S}[], fill(Nullable{S}(), dim + 1), fill(Nullable{Dart{T,S}}(), dim + 1), false )
     d.alpha = fill(Nullable{Dart{T, S}}(), dim + 1)
-	return d
+    return d
 end
 
 function dim{T, S}(d::Dart{T, S})
@@ -140,6 +140,14 @@ Get the embedded data for dimension i of this dart.
 """ ->
 function data{T, S}(d::Union(Dart{T, S}, OrientedDart{T,S}), i)
     return get(d.globalembed[i+1])
+end
+
+Docile.@doc """
+Get the embedded data for i-cell containing this dart.
+""" ->
+function celldata{T, S}(d::Union(Dart{T, S}, OrientedDart{T,S}), i)
+    key = get(d.embedloc[i+1])
+    return(get(key.globalembed[i+1]))
 end
 
 Docile.@doc """
@@ -269,30 +277,30 @@ Traverse the input orbit starting at start and applying the function f.
 Returns all the unique darts seen during traversal
 """ ->
 function traverse{T,S}(orbit::Orbit, start::Dart{T,S}, f::Function)
-    seen = Set()
-	#push!( seen, start )
-	#f( start )
+    seen = []
+    push!(seen, start)
+    f(start)
     function traverseWorker( orbit::Orbit, start::Dart, func::Function )
         for j in Task(orbit.index)
-			next = start.alpha[j + 1]
+	    next = start.alpha[j + 1]
             if isnull(next)
                 next = Nullable(start)
-			    if ! in( get(next), seen )
-				    func( get(next) )
-				    push!( seen, get(next) )
+		if ! in(get(next), seen)
+		    func(get(next))
+		    push!(seen, get(next))
                 end
                 continue
             else
-			    if ! in( get(next), seen )
-				    func( get(next) )
-				    push!( seen, get(next) )
-				    traverseWorker( orbit, get(next), func)
-			    end
+		if ! in(get(next), seen)
+		    func(get(next))
+		    push!(seen, get(next))
+		    traverseWorker(orbit, get(next), func)
+		end
             end
         end
-		return seen
+        return seen
     end
-    return traverseWorker(orbit, start, f )
+    return traverseWorker(orbit, start, f)
 end
 
 Docile.@doc """
@@ -340,12 +348,20 @@ end
 function dispatchembedding{T,S}(start::Dart{T,S}, dim, loc::Dart{T,S})
     OrbitButForEach( start, dim, (d) -> setembedloc!(d, dim, loc) )
 end
+
+Docile.@doc """
+Embeds data into specified key dart for the i-cell and sets the key dart as embedloc for itself and all other darts in the i-cell.
+""" -> 
+function setcellembed!{T,S}(keydart::Dart{T,S}, i, data)
+    setembed!(keydart, i, Nullable{S}(data))
+    dispatchembedding(keydart, i, keydart)
+end
     
 function sharecopyembedding{T,S}(d1::Dart{T,S}, d2::Dart{T,S}, dim)
-	function copy_embed( ds, dd )
-            setembed!(dd, dim, ds.globalembed[dim+1])
-            dispatchembedding(dd, dim, dd)
-	end
+    function copy_embed( ds, dd )
+        setembed!(dd, dim, ds.globalembed[dim+1])
+        dispatchembedding(dd, dim, dd)
+    end
     k1 = findcellkey(d1, dim)
     k2 = findcellkey(d2, dim)
     if !isequal(k1, k2)
@@ -425,10 +441,28 @@ function polygon!{I, T, S}(g::GeneralizedMap{I, T, S}, dim, n)
     return newdarts
 end
 
+
+function parallelepiped!{I, T, S}(g::GeneralizedMap{I, T, S}, dim)
+    for i in 1:6
+        polygon!(g, dim, 4)
+    end
+    # for i in 0:3
+    #     println(2i+1, " ", 8i+17)
+    #     println(2i+9, " ", 8i+22)
+    #     println(8i+19, " ", mod1(8(i+2), 32)+16)
+    # end
+    # sew!(g.darts[1], g.darts[17], 2)
+    for i in 0:3
+        sew!(g.darts[2i+1], g.darts[8i+17], 2)
+        sew!(g.darts[2i+9], g.darts[8i+22], 2)
+        sew!(g.darts[8i+19], g.darts[mod1(8(i+2), 32)+16], 2)
+    end
+end
+
 function collectkcells(g::GeneralizedMap, k)
     cells = Set() #cells = Set{Set{eltype(g.darts)[2]}}()
     for (i, d) in g.darts
-        darts = collectcelldarts(d, k)
+        darts = Set(collectcelldarts(d, k))
         if length(darts) > k
             push!(cells, darts)
         end
