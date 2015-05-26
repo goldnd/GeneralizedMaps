@@ -1,4 +1,5 @@
 module GeneralizedMaps
+using Compat
 using Docile
 
 export OrientedDart, Dart, id, ids, GeneralizedMap, sew, collectcelldarts, collectkcells, countkcells, Orbit, OrbitBut
@@ -30,12 +31,12 @@ typealias Dart2 Dart{ Uint, 3 }
 typealias Dart3 Dart{ Uint, 4 }
 
 Docile.@doc """ Returns new list with a zero before every entry """ ->
-function intersperseLeadingZeros ( lst )
+function intersperseLeadingZeros{T}(lst::Array{T})
     foldl( (a, x) -> begin
 				  push!( a, 0 )
 				  push!( a, x )
 				  a
-				  end, [],  lst )
+				  end, T[],  lst )
 end
 
 Docile.@doc """ Returns a list of dart ids """ ->
@@ -104,7 +105,7 @@ Push dart onto the GeneralizedMap gmap.  The index is updated and the result is 
 """ ->
 function Base.push!{I, T, S}(gmap::GeneralizedMap{I,T,S}, dart::Dart{T,S})
     dart.index = convert(I, length(gmap.darts) + 1)
-    gmap.darts[dart.index] = Dart{T,S}(dart)
+    gmap.darts[dart.index] = dart
 end
 
 Docile.@doc """
@@ -277,7 +278,7 @@ Traverse the input orbit starting at start and applying the function f.
 Returns all the unique darts seen during traversal
 """ ->
 function traverse{T,S}(orbit::Orbit, start::Dart{T,S}, f::Function)
-    seen = []
+    seen = Dart{T, S}[]
     push!(seen, start)
     f(start)
     function traverseWorker( orbit::Orbit, start::Dart, func::Function )
@@ -308,7 +309,7 @@ Traverse the input orbit starting at the oriented dart start and applying the fu
 Returns all the unique darts seen during traversal
 """ ->
 function traverse{T,S}(orbit::Orbit, start::OrientedDart{T,S}, f::Function)
-    seen = []
+    seen = Dart{T, S}[]
     push!(seen, start)
     f(start)
     function traverseWorker( orbit::Orbit, start::OrientedDart, func::Function )
@@ -331,7 +332,7 @@ function traverse{T,S}(orbit::Orbit, start::OrientedDart{T,S}, f::Function)
         end
 	return seen
     end
-    return traverseWorker(orbit, start, f )
+    return traverseWorker(orbit, start, f)
 end
 
 Docile.@doc """
@@ -428,7 +429,7 @@ function polygon!{I, T, S}(g::GeneralizedMap{I, T, S}, dim, n)
     newdarts = Dart{T, S}[]
     for i in range(1, 2 * n)
         push!(newdarts, Dart(dim, T, S))
-        push!(g, Dart{T,S}(newdarts[end]))
+        push!(g, newdarts[end])
     end
     # first sew pairs of darts to each other to form vertices
     for i in range(1, 2, div(length(newdarts), 2))
@@ -443,7 +444,7 @@ end
 
 
 function parallelepiped!{I, T, S}(g::GeneralizedMap{I, T, S}, dim)
-    for i in 1:6                # Create six squares to be sewn together.
+    for i in 1:6                # Create 6 sqaures to be sewn together.
         polygon!(g, dim, 4)
     end
     for i in 0:3
