@@ -443,7 +443,7 @@ function polygon!{I, T, S}(g::GeneralizedMap{I, T, S}, dim, n)
 end
 
 
-function parallelepiped!{I, T, S}(g::GeneralizedMap{I, T, S}, dim)
+function cube!{I, T, S}(g::GeneralizedMap{I, T, S}, dim)
     for i in 1:6                # Create 6 sqaures to be sewn together.
         polygon!(g, dim, 4)
     end

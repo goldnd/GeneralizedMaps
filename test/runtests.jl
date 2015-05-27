@@ -50,17 +50,6 @@ facts("Check polygon construction.") do
     end   
 end
 
-facts("Test parallelpiped construction.") do
-    g = GeneralizedMaps.GeneralizedMap(Int64, Int64)
-    GeneralizedMaps.parallelepiped!(g, 2)
-    context("Ensure appropriate number of 0-, 1-, 2-, and 3-cells.") do
-        rightanswers = [8, 12, 6, 1]
-        for (i, x) in enumerate(rightanswers)
-            @fact countkcells(g, i-1) => x
-        end
-    end
-end
-
 facts("Check interspersLeadingZeros.") do
     @fact intersperseLeadingZeros( [ 1, 2, 3, 4, 6 ] ) => [ 0, 1, 0, 2, 0, 3, 0, 4, 0, 6 ] 
 end
@@ -77,4 +66,5 @@ facts("Check that data is properly embeded and shared upon sewing.") do
     @fact get(g.darts[2].embedloc[1]) => g.darts[1]
 end
 
+include("cube.jl")
 # vim: set ts=4 sw=4:
